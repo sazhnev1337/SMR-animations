@@ -1,0 +1,662 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Ловушка Ляпунова</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Layout: phase plane as the hero, controls and live readouts in a right rail,
+   the three-step proof as a numbered strip underneath. */
+:root{
+  --bg:#f4f6f8;
+  --surface:#ffffff;
+  --plane:#fbfcfd;
+  --fg:#16202b;
+  --muted:#5d6b7a;
+  --line:#d8e0e8;
+  --grid:#e7edf3;
+
+  --trap:#0f8a7e;        /* множество уровня V = sigma */
+  --trap-fill:rgba(15,138,126,.10);
+  --bound:#d4543a;       /* сфера радиуса eps */
+  --traj:#b4700d;        /* траектория */
+  --field:#9fb0c0;       /* векторное поле */
+  --ok:#0f8a7e;
+  --bad:#d4543a;
+
+  --font-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#101720;
+    --surface:#172029;
+    --plane:#131c25;
+    --fg:#e4ecf3;
+    --muted:#93a4b4;
+    --line:#2a3744;
+    --grid:#1e2932;
+    --trap:#39c7b4;
+    --trap-fill:rgba(57,199,180,.12);
+    --bound:#f0785a;
+    --traj:#f0b429;
+    --field:#4a5d6f;
+    --ok:#39c7b4;
+    --bad:#f0785a;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101720;
+  --surface:#172029;
+  --plane:#131c25;
+  --fg:#e4ecf3;
+  --muted:#93a4b4;
+  --line:#2a3744;
+  --grid:#1e2932;
+  --trap:#39c7b4;
+  --trap-fill:rgba(57,199,180,.12);
+  --bound:#f0785a;
+  --traj:#f0b429;
+  --field:#4a5d6f;
+  --ok:#39c7b4;
+  --bad:#f0785a;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg);
+  color:var(--fg);
+  font-family:var(--font-ui);
+  font-size:15px;
+  line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 40px;
+}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+
+header h1{
+  font-size:clamp(1.5rem,4vw,2rem);
+  font-weight:600;
+  letter-spacing:-.015em;
+  margin:0 0 6px;
+  text-wrap:balance;
+}
+header p{margin:0;color:var(--muted);max-width:62ch}
+.eq{font-family:var(--font-mono);font-size:.93em;white-space:nowrap}
+.eq i{font-style:italic}
+
+.stage{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(250px,.9fr);gap:18px;align-items:start}
+@media (max-width:760px){.stage{grid-template-columns:1fr}}
+.left{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+.panel{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:10px;
+  min-width:0;
+}
+.plane-box{padding:10px}
+canvas#plane{width:100%;aspect-ratio:1/1;max-width:100%;display:block;border-radius:6px;touch-action:none;cursor:crosshair}
+
+.rail{display:flex;flex-direction:column;gap:14px;min-width:0}
+.rail section{padding:14px 15px}
+.rail h2{
+  font-size:.7rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 10px;
+}
+
+.cases{display:flex;flex-direction:column;gap:6px}
+.case{
+  display:block;width:100%;text-align:left;cursor:pointer;
+  background:transparent;color:var(--fg);
+  border:1px solid var(--line);border-radius:7px;
+  padding:8px 10px;font:inherit;font-size:.86rem;
+  transition:border-color .15s,background .15s;
+}
+.case:hover{border-color:var(--muted)}
+.case[aria-pressed="true"]{border-color:var(--trap);background:var(--trap-fill)}
+.case b{display:block;font-weight:600;font-size:.9rem}
+.case span{display:block;font-family:var(--font-mono);font-size:.78rem;color:var(--muted);margin-top:2px}
+.case:focus-visible{outline:2px solid var(--trap);outline-offset:2px}
+
+.ctrl{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.ctrl label{font-size:.82rem;color:var(--muted);min-width:68px}
+.ctrl input[type=range]{flex:1;min-width:0;accent-color:var(--trap)}
+.ctrl output{font-family:var(--font-mono);font-size:.82rem;min-width:40px;text-align:right;font-variant-numeric:tabular-nums}
+
+.toggles{display:flex;flex-wrap:wrap;gap:12px;font-size:.82rem;color:var(--muted)}
+.toggles label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.toggles input{accent-color:var(--trap)}
+
+.buttons{display:flex;gap:8px;flex-wrap:wrap}
+button.act{
+  flex:1;min-width:84px;cursor:pointer;font:inherit;font-size:.85rem;font-weight:500;
+  padding:7px 12px;border-radius:7px;border:1px solid var(--line);
+  background:var(--surface);color:var(--fg);transition:border-color .15s;
+}
+button.act:hover{border-color:var(--muted)}
+button.act.primary{background:var(--trap);border-color:var(--trap);color:#fff}
+button.act:focus-visible{outline:2px solid var(--trap);outline-offset:2px}
+
+.readout{display:grid;grid-template-columns:1fr 1fr;gap:9px 14px}
+.readout div{min-width:0}
+.readout dt{font-size:.74rem;color:var(--muted);margin:0}
+.readout dd{
+  margin:1px 0 0;font-family:var(--font-mono);font-size:.95rem;
+  font-variant-numeric:tabular-nums;
+}
+.swatch{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:baseline}
+
+canvas#vplot{width:100%;height:112px;display:block}
+.vcap{font-size:.75rem;color:var(--muted);margin:6px 0 0;font-family:var(--font-mono)}
+
+.verdict{
+  font-size:.86rem;padding:10px 12px;border-radius:7px;
+  border-left:3px solid var(--trap);background:var(--trap-fill);
+}
+.verdict.warn{border-left-color:var(--bad);background:rgba(212,84,58,.10)}
+.verdict b{font-weight:600}
+
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px}
+.step{padding:14px 16px}
+.step .n{
+  font-family:var(--font-mono);font-size:.78rem;color:var(--trap);
+  font-weight:500;letter-spacing:.06em;
+}
+.step h3{font-size:.95rem;font-weight:600;margin:4px 0 6px}
+.step p{margin:0;font-size:.87rem;color:var(--muted)}
+.step .val{font-family:var(--font-mono);color:var(--fg);font-variant-numeric:tabular-nums}
+
+footer{font-size:.82rem;color:var(--muted);max-width:68ch}
+footer p{margin:0 0 7px}
+footer code{font-family:var(--font-mono);font-size:.93em}
+
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <h1>Ловушка Ляпунова</h1>
+  <p>Геометрия теоремы об устойчивости: если <span class="eq">V&#775; &le; 0</span>, множество уровня <span class="eq">{V &le; &sigma;}</span> становится ловушкой — поле на его границе смотрит внутрь, и траектория не может добраться до сферы радиуса <span class="eq">&epsilon;</span>. Потяните красную точку, чтобы сменить начальное условие.</p>
+</header>
+
+<div class="stage">
+
+  <div class="left">
+    <div class="panel plane-box">
+      <canvas id="plane" width="760" height="760" aria-label="Фазовая плоскость с векторным полем, множеством уровня и траекторией"></canvas>
+    </div>
+
+    <div class="steps">
+      <div class="panel step">
+        <div class="n">ШАГ 1</div>
+        <h3>Берём минимум V на сфере</h3>
+        <p>Сфера <span class="eq">‖x‖ = &epsilon;</span> компактна, <span class="eq">V</span> непрерывна и строго положительна вне нуля, значит <span class="val" id="s1">&sigma; &gt; 0</span>. Это «цена входа» на запретную границу.</p>
+      </div>
+      <div class="panel step">
+        <div class="n">ШАГ 2</div>
+        <h3>Вписываем &delta; в множество уровня</h3>
+        <p>По непрерывности <span class="eq">V</span> в нуле найдётся <span class="val" id="s2">&delta;</span>, при котором <span class="eq">‖x&#8320;‖ &lt; &delta; &rArr; V(x&#8320;) &lt; &sigma;</span>. Для эллиптических линий уровня <span class="eq">&delta; &lt; &epsilon;</span> строго.</p>
+      </div>
+      <div class="panel step">
+        <div class="n">ШАГ 3</div>
+        <h3>V не возрастает — выхода нет</h3>
+        <p>Из <span class="eq">V&#775; &le; 0</span> следует <span class="eq">V(x(t)) &le; V(x&#8320;) &lt; &sigma;</span> при всех <span class="eq">t</span>. Но на сфере <span class="eq">V &ge; &sigma;</span>. Траектория физически не может туда попасть.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="rail">
+
+    <section class="panel">
+      <h2>Система и функция V</h2>
+      <div class="cases" id="cases"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Параметры</h2>
+      <div class="ctrl">
+        <label for="eps">&epsilon;</label>
+        <input type="range" id="eps" min="0.8" max="2.6" step="0.05" value="2.0">
+        <output id="epsOut">2.00</output>
+      </div>
+      <div class="buttons">
+        <button class="act primary" id="play">Пауза</button>
+        <button class="act" id="reset">Сброс</button>
+      </div>
+      <div class="toggles" style="margin-top:11px">
+        <label><input type="checkbox" id="tField" checked> поле</label>
+        <label><input type="checkbox" id="tArrows" checked> стрелки на границе</label>
+        <label><input type="checkbox" id="tLevels" checked> линии уровня</label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Числа</h2>
+      <dl class="readout">
+        <div><dt><span class="swatch" style="background:var(--bound)"></span>&epsilon; — запретная сфера</dt><dd id="rEps">2.00</dd></div>
+        <div><dt><span class="swatch" style="background:var(--trap)"></span>&sigma; = min<sub>‖x‖=&epsilon;</sub> V</dt><dd id="rSig">—</dd></div>
+        <div><dt>&delta; — вписанный круг</dt><dd id="rDel">—</dd></div>
+        <div><dt>V(x(t)) сейчас</dt><dd id="rV">—</dd></div>
+        <div><dt>‖x(t)‖ сейчас</dt><dd id="rN">—</dd></div>
+        <div><dt>V&#775; сейчас</dt><dd id="rVd">—</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <h2>V вдоль траектории</h2>
+      <canvas id="vplot" width="520" height="224" aria-label="График V от времени"></canvas>
+      <p class="vcap" id="vcap">горизонталь — уровень &sigma;</p>
+    </section>
+
+    <div class="verdict" id="verdict">—</div>
+
+  </div>
+</div>
+
+<footer>
+  <p><b>Что показывают стрелки на бирюзовой кривой.</b> Это вектор поля <span class="eq">f(x)</span> в точках границы ловушки. Бирюзовая стрелка — <span class="eq">(&nabla;V, f) &lt; 0</span>, поле смотрит внутрь; красная — наружу, и в этом месте ловушка протекает. Теорема Ляпунова ровно про то, что красных стрелок нет нигде.</p>
+  <p><b>Про случай V&#775; &le; 0 с равенством.</b> Там, где <span class="eq">V&#775; = 0</span>, стрелка касается линии уровня: траектория скользит вдоль неё, не приближаясь к нулю. Устойчивость это не ломает, а вот асимптотическую даёт только условие Барбашина–Красовского — множество <span class="eq">{V&#775; = 0}</span> не должно целиком содержать траекторий.</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ---------- системы ----------
+// f(x,y) = (y, -x + c*y);  V(x,y) = m11 x^2 + 2 m12 x y + m22 y^2
+const SYSTEMS = [
+  { key:"strict",
+    name:"Строгое убывание",
+    eq:"ẋ=y, ẏ=−x−y;  V=1.5x²+xy+y²",
+    c:-1, M:[1.5,0.5,1.0],
+    note:"V̇ = −(x²+y²) ≺ 0",
+    verdict:["Асимптотическая устойчивость","V убывает всюду, кроме нуля. Ловушка сжимается, траектория стягивается в равновесие. Линии уровня — наклонные эллипсы, поэтому δ строго меньше ε."],
+    warn:false },
+  { key:"semi",
+    name:"Нестрогое убывание",
+    eq:"ẋ=y, ẏ=−x−y;  V=(x²+y²)/2",
+    c:-1, M:[0.5,0,0.5],
+    note:"V̇ = −y² ⪯ 0",
+    verdict:["Устойчивость по теореме, асимптотика — по Барбашину–Красовскому","На оси x производная равна нулю, стрелки там касаются окружности. Траектория эту ось пересекает, но не остаётся на ней — условие 3 выполнено, значит сходимость всё-таки есть."],
+    warn:false },
+  { key:"center",
+    name:"Консервативный центр",
+    eq:"ẋ=y, ẏ=−x;  V=(x²+y²)/2",
+    c:0, M:[0.5,0,0.5],
+    note:"V̇ ≡ 0",
+    verdict:["Устойчиво, но не асимптотически","Поле всюду касается линий уровня: траектории совпадают с окружностями V = const. Ловушка держит, но внутрь не затягивает — предельного перехода к нулю нет."],
+    warn:false },
+  { key:"unstable",
+    name:"Отрицательное демпфирование",
+    eq:"ẋ=y, ẏ=−x+y;  V=(x²+y²)/2",
+    c:1, M:[0.5,0,0.5],
+    note:"V̇ = +y² ⪰ 0",
+    verdict:["Теорема неприменима — равновесие неустойчиво","Почти все стрелки на границе красные: поле выносит траекторию наружу. Ловушки нет, и спираль уходит за сферу радиуса ε."],
+    warn:true }
+];
+
+let sys = SYSTEMS[0];
+let eps = 2.0;
+let running = true;
+let showField = true, showArrows = true, showLevels = true;
+
+const VIEW = 3.1;            // полуширина окна в координатах состояния
+const DT = 0.006;            // шаг интегрирования
+const STEPS_PER_FRAME = 7;
+const MAX_PTS = 9000;
+
+let start = {x:0.9, y:0.75};
+let traj = [];               // [{x,y,t}]
+let vlog = [];               // [{t,v}]
+let tcur = 0;
+let dragging = false;
+
+// ---------- математика ----------
+function f(x,y){ return [y, -x + sys.c*y]; }
+function V(x,y){ const [a,b,d]=sys.M; return a*x*x + 2*b*x*y + d*y*y; }
+function gradV(x,y){ const [a,b,d]=sys.M; return [2*a*x+2*b*y, 2*b*x+2*d*y]; }
+function Vdot(x,y){ const g=gradV(x,y), v=f(x,y); return g[0]*v[0]+g[1]*v[1]; }
+
+// собственные числа симметричной 2x2 [[a,b],[b,d]]
+function eigSym(a,b,d){
+  const tr=a+d, det=a*d-b*b, s=Math.sqrt(Math.max(0,tr*tr/4-det));
+  return [tr/2-s, tr/2+s];     // [min, max]
+}
+function sigmaOf(){ const [a,b,d]=sys.M; return eps*eps*eigSym(a,b,d)[0]; }
+function deltaOf(){
+  const [a,b,d]=sys.M, e=eigSym(a,b,d);
+  return eps*Math.sqrt(e[0]/e[1]);
+}
+// радиус линии уровня V = c в направлении угла th
+function levelR(c, th){
+  const [a,b,d]=sys.M, u=Math.cos(th), w=Math.sin(th);
+  const q = a*u*u + 2*b*u*w + d*w*w;
+  return Math.sqrt(c/q);
+}
+
+function rk4(p){
+  const h=DT;
+  const k1=f(p.x,p.y);
+  const k2=f(p.x+h/2*k1[0], p.y+h/2*k1[1]);
+  const k3=f(p.x+h/2*k2[0], p.y+h/2*k2[1]);
+  const k4=f(p.x+h*k3[0],  p.y+h*k3[1]);
+  return { x: p.x + h/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]),
+           y: p.y + h/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1]) };
+}
+
+function resetTraj(){
+  traj=[{x:start.x,y:start.y}]; tcur=0;
+  vlog=[{t:0,v:V(start.x,start.y)}];
+}
+
+// ---------- холст ----------
+const cv = document.getElementById("plane");
+const ctx = cv.getContext("2d");
+const vp = document.getElementById("vplot");
+const vctx = vp.getContext("2d");
+
+function sizeCanvas(c){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const r = c.getBoundingClientRect();
+  if(r.width<2) return false;
+  const w = Math.round(r.width*dpr), h = Math.round(r.height*dpr);
+  if(c.width!==w || c.height!==h){ c.width=w; c.height=h; }
+  return true;
+}
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function toPx(x,y,W,H){
+  const s = Math.min(W,H)/(2*VIEW);
+  return [W/2 + x*s, H/2 - y*s];
+}
+function toWorld(px,py,W,H){
+  const s = Math.min(W,H)/(2*VIEW);
+  return [(px - W/2)/s, (H/2 - py)/s];
+}
+
+function drawPlane(){
+  if(!sizeCanvas(cv)) return;
+  const W=cv.width, H=cv.height;
+  const S = Math.min(W,H)/(2*VIEW);
+  const lw = Math.max(1, S/110);          // базовая толщина, масштабируется с dpr
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = css("--plane");
+  ctx.fillRect(0,0,W,H);
+
+  // сетка
+  ctx.strokeStyle = css("--grid"); ctx.lineWidth = lw*0.8;
+  for(let k=-3;k<=3;k++){
+    if(k===0) continue;
+    let p=toPx(k,-VIEW,W,H), q=toPx(k,VIEW,W,H);
+    ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+    p=toPx(-VIEW,k,W,H); q=toPx(VIEW,k,W,H);
+    ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  }
+  // оси
+  ctx.strokeStyle = css("--line"); ctx.lineWidth = lw*1.3;
+  let p=toPx(-VIEW,0,W,H), q=toPx(VIEW,0,W,H);
+  ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  p=toPx(0,-VIEW,W,H); q=toPx(0,VIEW,W,H);
+  ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+
+  // векторное поле
+  if(showField){
+    const N=17, step=2*VIEW/(N+1);
+    ctx.strokeStyle = css("--field"); ctx.fillStyle = css("--field");
+    ctx.lineWidth = lw*0.9;
+    for(let i=1;i<=N;i++) for(let j=1;j<=N;j++){
+      const x=-VIEW+i*step, y=-VIEW+j*step;
+      const v=f(x,y), m=Math.hypot(v[0],v[1]);
+      if(m<1e-9) continue;
+      const L = step*0.42;
+      const a=toPx(x - v[0]/m*L*0.5, y - v[1]/m*L*0.5, W,H);
+      const b=toPx(x + v[0]/m*L*0.5, y + v[1]/m*L*0.5, W,H);
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+      // наконечник
+      const ang=Math.atan2(b[1]-a[1], b[0]-a[0]), hl=S*0.035;
+      ctx.beginPath();
+      ctx.moveTo(b[0],b[1]);
+      ctx.lineTo(b[0]-hl*Math.cos(ang-0.4), b[1]-hl*Math.sin(ang-0.4));
+      ctx.lineTo(b[0]-hl*Math.cos(ang+0.4), b[1]-hl*Math.sin(ang+0.4));
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // линии уровня V
+  const sig = sigmaOf();
+  if(showLevels){
+    ctx.strokeStyle = css("--line"); ctx.lineWidth = lw*0.9;
+    for(const frac of [0.12,0.3,0.55,1.5,2.2]){
+      ctx.beginPath();
+      for(let k=0;k<=160;k++){
+        const th=k/160*2*Math.PI, r=levelR(sig*frac, th);
+        const pt=toPx(r*Math.cos(th), r*Math.sin(th), W,H);
+        k ? ctx.lineTo(pt[0],pt[1]) : ctx.moveTo(pt[0],pt[1]);
+      }
+      ctx.closePath(); ctx.stroke();
+    }
+  }
+
+  // ловушка V = sigma
+  ctx.beginPath();
+  for(let k=0;k<=240;k++){
+    const th=k/240*2*Math.PI, r=levelR(sig, th);
+    const pt=toPx(r*Math.cos(th), r*Math.sin(th), W,H);
+    k ? ctx.lineTo(pt[0],pt[1]) : ctx.moveTo(pt[0],pt[1]);
+  }
+  ctx.closePath();
+  ctx.fillStyle = css("--trap-fill"); ctx.fill();
+  ctx.strokeStyle = css("--trap"); ctx.lineWidth = lw*2.2; ctx.stroke();
+
+  // сфера eps
+  ctx.setLineDash([lw*6, lw*5]);
+  ctx.strokeStyle = css("--bound"); ctx.lineWidth = lw*2;
+  ctx.beginPath(); ctx.arc(W/2,H/2, eps*S, 0, 2*Math.PI); ctx.stroke();
+  // круг delta
+  ctx.setLineDash([lw*2, lw*4]);
+  ctx.strokeStyle = css("--muted"); ctx.lineWidth = lw*1.5;
+  ctx.beginPath(); ctx.arc(W/2,H/2, deltaOf()*S, 0, 2*Math.PI); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // стрелки поля на границе ловушки
+  if(showArrows){
+    const NA=22;
+    for(let k=0;k<NA;k++){
+      const th=k/NA*2*Math.PI, r=levelR(sig,th);
+      const x=r*Math.cos(th), y=r*Math.sin(th);
+      const v=f(x,y), m=Math.hypot(v[0],v[1]);
+      if(m<1e-9) continue;
+      const vd=Vdot(x,y);
+      const col = vd < -1e-9 ? css("--ok") : (vd > 1e-9 ? css("--bad") : css("--muted"));
+      const L=0.42;
+      const a=toPx(x,y,W,H);
+      const b=toPx(x+v[0]/m*L, y+v[1]/m*L, W,H);
+      ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=lw*2;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+      const ang=Math.atan2(b[1]-a[1], b[0]-a[0]), hl=S*0.055;
+      ctx.beginPath();
+      ctx.moveTo(b[0],b[1]);
+      ctx.lineTo(b[0]-hl*Math.cos(ang-0.42), b[1]-hl*Math.sin(ang-0.42));
+      ctx.lineTo(b[0]-hl*Math.cos(ang+0.42), b[1]-hl*Math.sin(ang+0.42));
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // траектория
+  if(traj.length>1){
+    ctx.strokeStyle = css("--traj"); ctx.lineWidth = lw*2.4;
+    ctx.lineJoin="round"; ctx.lineCap="round";
+    ctx.beginPath();
+    for(let i=0;i<traj.length;i++){
+      const pt=toPx(traj[i].x, traj[i].y, W,H);
+      i ? ctx.lineTo(pt[0],pt[1]) : ctx.moveTo(pt[0],pt[1]);
+    }
+    ctx.stroke();
+    const head=traj[traj.length-1], hp=toPx(head.x,head.y,W,H);
+    ctx.fillStyle = css("--traj");
+    ctx.beginPath(); ctx.arc(hp[0],hp[1], S*0.038, 0, 2*Math.PI); ctx.fill();
+  }
+
+  // начальная точка (перетаскиваемая)
+  const sp=toPx(start.x,start.y,W,H);
+  ctx.fillStyle = css("--bound");
+  ctx.beginPath(); ctx.arc(sp[0],sp[1], S*0.052, 0, 2*Math.PI); ctx.fill();
+  ctx.strokeStyle = css("--plane"); ctx.lineWidth = lw*1.6; ctx.stroke();
+
+  // равновесие
+  ctx.fillStyle = css("--fg");
+  ctx.beginPath(); ctx.arc(W/2,H/2, S*0.026, 0, 2*Math.PI); ctx.fill();
+
+  // подписи
+  ctx.font = `500 ${Math.round(S*0.115)}px ${css("--font-mono")||"monospace"}`;
+  ctx.textAlign="left"; ctx.textBaseline="middle";
+  ctx.fillStyle = css("--bound");
+  const le=toPx(eps*0.707, eps*0.707, W,H);
+  ctx.fillText("ε", le[0]+S*0.07, le[1]-S*0.07);
+  ctx.fillStyle = css("--trap");
+  const rs = levelR(sig, Math.PI*1.25);
+  const ls = toPx(-rs*0.707, -rs*0.707, W, H);
+  ctx.textAlign = "right";
+  ctx.fillText("V = σ", Math.max(S*0.75, ls[0]-S*0.1), Math.min(H-S*0.12, ls[1]+S*0.16));
+  ctx.textAlign = "left";
+}
+
+function drawVplot(){
+  if(!sizeCanvas(vp)) return;
+  const W=vp.width, H=vp.height, pad=Math.round(H*0.09);
+  vctx.clearRect(0,0,W,H);
+  vctx.fillStyle=css("--surface"); vctx.fillRect(0,0,W,H);
+  if(vlog.length<2) return;
+
+  const sig=sigmaOf();
+  let vmax=sig*1.25;
+  for(const r of vlog) if(r.v>vmax) vmax=r.v*1.08;
+  const tmax=Math.max(vlog[vlog.length-1].t, 1);
+  const X=t=>pad + (W-2*pad)*(t/tmax);
+  const Y=v=>H-pad - (H-2*pad)*(v/vmax);
+
+  // уровень sigma
+  vctx.setLineDash([5,5]); vctx.strokeStyle=css("--trap"); vctx.lineWidth=2;
+  vctx.beginPath(); vctx.moveTo(pad,Y(sig)); vctx.lineTo(W-pad,Y(sig)); vctx.stroke();
+  vctx.setLineDash([]);
+
+  // кривая V(t)
+  vctx.strokeStyle=css("--traj"); vctx.lineWidth=2.6; vctx.lineJoin="round";
+  vctx.beginPath();
+  const stride=Math.max(1, Math.floor(vlog.length/500));
+  for(let i=0;i<vlog.length;i+=stride){
+    const px=X(vlog[i].t), py=Y(vlog[i].v);
+    i ? vctx.lineTo(px,py) : vctx.moveTo(px,py);
+  }
+  vctx.stroke();
+
+  vctx.fillStyle=css("--muted");
+  vctx.font=`400 ${Math.round(H*0.11)}px ${css("--font-mono")||"monospace"}`;
+  vctx.textAlign="left"; vctx.textBaseline="bottom";
+  vctx.fillText("σ", pad+3, Y(sig)-3);
+}
+
+// ---------- интерфейс ----------
+const casesEl=document.getElementById("cases");
+SYSTEMS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.className="case"; b.type="button"; b.id="case-"+s.key;
+  b.setAttribute("aria-pressed", i===0?"true":"false");
+  b.innerHTML = `<b>${s.name}</b><span>${s.eq}</span><span>${s.note}</span>`;
+  b.addEventListener("click",()=>{
+    sys=s;
+    [...casesEl.children].forEach(c=>c.setAttribute("aria-pressed","false"));
+    b.setAttribute("aria-pressed","true");
+    resetTraj(); refreshText();
+  });
+  casesEl.appendChild(b);
+});
+
+const epsEl=document.getElementById("eps"), epsOut=document.getElementById("epsOut");
+epsEl.addEventListener("input",()=>{
+  eps=parseFloat(epsEl.value); epsOut.textContent=eps.toFixed(2); refreshText();
+});
+
+document.getElementById("play").addEventListener("click",e=>{
+  running=!running; e.currentTarget.textContent = running ? "Пауза" : "Пуск";
+});
+document.getElementById("reset").addEventListener("click",()=>{ resetTraj(); });
+document.getElementById("tField").addEventListener("change",e=>{showField=e.currentTarget.checked});
+document.getElementById("tArrows").addEventListener("change",e=>{showArrows=e.currentTarget.checked});
+document.getElementById("tLevels").addEventListener("change",e=>{showLevels=e.currentTarget.checked});
+
+function pointerWorld(ev){
+  const r=cv.getBoundingClientRect();
+  const dpr=cv.width/r.width;
+  return toWorld((ev.clientX-r.left)*dpr, (ev.clientY-r.top)*dpr, cv.width, cv.height);
+}
+cv.addEventListener("pointerdown",ev=>{
+  cv.setPointerCapture(ev.pointerId);
+  dragging=true;
+  const w=pointerWorld(ev);
+  start={x:Math.max(-VIEW,Math.min(VIEW,w[0])), y:Math.max(-VIEW,Math.min(VIEW,w[1]))};
+  resetTraj();
+});
+cv.addEventListener("pointermove",ev=>{
+  if(!dragging) return;
+  const w=pointerWorld(ev);
+  start={x:Math.max(-VIEW,Math.min(VIEW,w[0])), y:Math.max(-VIEW,Math.min(VIEW,w[1]))};
+  resetTraj();
+});
+cv.addEventListener("pointerup",()=>{dragging=false});
+cv.addEventListener("pointercancel",()=>{dragging=false});
+
+function refreshText(){
+  const sig=sigmaOf(), del=deltaOf();
+  document.getElementById("rEps").textContent=eps.toFixed(2);
+  document.getElementById("rSig").textContent=sig.toFixed(3);
+  document.getElementById("rDel").textContent=del.toFixed(3);
+  document.getElementById("s1").textContent="σ = "+sig.toFixed(3);
+  document.getElementById("s2").textContent="δ = "+del.toFixed(3)+"  (δ/ε = "+(del/eps).toFixed(3)+")";
+  const v=document.getElementById("verdict");
+  v.className = "verdict" + (sys.verdict && sys.warn ? " warn" : "");
+  v.innerHTML = "<b>"+sys.verdict[0]+".</b> "+sys.verdict[1];
+}
+
+// ---------- цикл ----------
+function frame(){
+  if(running && traj.length){
+    for(let i=0;i<STEPS_PER_FRAME;i++){
+      const last=traj[traj.length-1];
+      if(Math.hypot(last.x,last.y) > VIEW*1.25) break;
+      const nxt=rk4(last);
+      traj.push(nxt); tcur+=DT;
+      if(traj.length%6===0) vlog.push({t:tcur, v:V(nxt.x,nxt.y)});
+    }
+    if(traj.length>MAX_PTS) traj.splice(0, traj.length-MAX_PTS);
+    if(vlog.length>2400) vlog.splice(0, vlog.length-2400);
+  }
+  const last = traj.length ? traj[traj.length-1] : start;
+  document.getElementById("rV").textContent  = V(last.x,last.y).toFixed(3);
+  document.getElementById("rN").textContent  = Math.hypot(last.x,last.y).toFixed(3);
+  const vd = Vdot(last.x,last.y);
+  const vdEl = document.getElementById("rVd");
+  vdEl.textContent = (vd>=0?"+":"") + vd.toFixed(3);
+  vdEl.style.color = vd < -1e-6 ? css("--ok") : (vd > 1e-6 ? css("--bad") : css("--muted"));
+
+  drawPlane(); drawVplot();
+  requestAnimationFrame(frame);
+}
+
+resetTraj();
+refreshText();
+window.addEventListener("resize",()=>{ drawPlane(); drawVplot(); });
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
